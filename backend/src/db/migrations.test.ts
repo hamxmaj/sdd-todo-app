@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import knex, { type Knex } from 'knex';
 import path from 'path';
-import { VitestMigrationSource } from '../VitestMigrationSource';
+import { VitestMigrationSource } from './VitestMigrationSource';
 
 let db: Knex;
-const migrationSource = new VitestMigrationSource(path.join(__dirname));
+const migrationSource = new VitestMigrationSource(path.join(__dirname, 'migrations'));
 
 beforeAll(async () => {
   db = knex({
