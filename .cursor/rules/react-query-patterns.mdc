@@ -1,0 +1,61 @@
+---
+description: TanStack React Query v5 conventions — query keys, mutations, cache invalidation
+globs: frontend/**/*.tsx
+alwaysApply: false
+---
+
+# React Query v5 Conventions
+
+This project uses **TanStack Query v5**. The v5 API is object-only — positional args are removed.
+
+## Queries
+
+```typescript
+// ❌ BAD — v4 positional API, broken in v5
+const { data } = useQuery(['todos'], fetchTodos);
+
+// ✅ GOOD — v5 object API
+const { data, isLoading, error } = useQuery({
+  queryKey: ['todos'],
+  queryFn: fetchTodos,
+});
+```
+
+## Query Key Convention
+
+Use a **constant or enum** for query keys to avoid stale-cache misses:
+
+```typescript
+// lib/api/queryKeys.ts
+export const queryKeys = {
+  todos: {
+    all: ['todos'] as const,
+    byId: (id: number) => ['todos', id] as const,
+  },
+};
+```
+
+## Mutations with Cache Invalidation
+
+Always invalidate the relevant query after a successful mutation.
+
+```typescript
+// ❌ BAD — mutates but cache stays stale
+const mutation = useMutation({ mutationFn: createTodo });
+
+// ✅ GOOD — invalidates so list re-fetches
+const queryClient = useQueryClient();
+const mutation = useMutation({
+  mutationFn: createTodo,
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.todos.all });
+  },
+});
+```
+
+## Rules
+
+- **Never** use `useEffect` to fetch data — use `useQuery`.
+- All data-fetching functions live in `frontend/lib/api/todos.ts`, not inline.
+- `QueryClientProvider` is already set up in `Providers.tsx` — do not add a second one.
+- Use `isPending` (not `isLoading`) for mutation loading state in v5.

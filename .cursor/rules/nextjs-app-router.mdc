@@ -1,0 +1,51 @@
+---
+description: Next.js App Router conventions — Server Components by default, push use client to leaves
+globs: frontend/**/*.tsx
+alwaysApply: false
+---
+
+# Next.js App Router — Server vs Client Components
+
+In this project (`app/` directory), every component is a **React Server Component (RSC) by default**. Only add `'use client'` where truly necessary.
+
+## When to use `'use client'`
+
+- Uses React state (`useState`, `useReducer`)
+- Uses effects (`useEffect`, `useLayoutEffect`)
+- Uses browser APIs (`window`, `localStorage`, event handlers)
+- Uses React Query hooks (`useQuery`, `useMutation`)
+
+## Push `'use client'` to the leaves
+
+```tsx
+// ❌ BAD — wraps the whole page in a client boundary, losing RSC benefits
+'use client';
+export default function Page() {
+  const { data } = useQuery({ queryKey: ['todos'], queryFn: fetchTodos });
+  return <main><TodoList todos={data} /></main>;
+}
+
+// ✅ GOOD — page stays a Server Component; only the interactive part is client
+// app/page.tsx (Server Component — no directive)
+export default function Page() {
+  return <main><TodoList /></main>; // TodoList.tsx has 'use client'
+}
+
+// components/TodoList.tsx
+'use client';
+export function TodoList() {
+  const { data } = useQuery({ queryKey: ['todos'], queryFn: fetchTodos });
+  ...
+}
+```
+
+## `Providers.tsx` pattern
+
+`QueryClientProvider` is already a client boundary in `Providers.tsx`. Components that only consume query data still need `'use client'` on themselves — being *under* a client provider does not make them client components automatically.
+
+## Rules
+
+- `app/layout.tsx` and `app/page.tsx` must remain Server Components unless there is a compelling reason.
+- Do not fetch data in client components with `fetch` directly — use React Query hooks.
+- Async Server Components can `await` data directly; no hooks needed.
+- Keep `'use client'` as the **very first line** of the file (before imports).

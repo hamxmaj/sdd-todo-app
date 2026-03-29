@@ -1,0 +1,50 @@
+---
+description: Zod v4 validation patterns for API schemas — use safeParse, structure errors correctly
+globs: backend/src/**/*.ts
+alwaysApply: false
+---
+
+# Zod Validation Patterns (Backend)
+
+This project uses **Zod v4**. The v4 API differs from v3 — do not copy v3 patterns.
+
+## Defining Schemas
+
+Schemas live in `src/schemas/`. One file per domain (e.g. `todoSchemas.ts`).
+
+```typescript
+// ✅ GOOD — Zod v4 schema with inferred type
+import { z } from 'zod';
+
+export const createTodoSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(255),
+  completed: z.boolean().optional().default(false),
+});
+
+export type CreateTodoInput = z.infer<typeof createTodoSchema>;
+```
+
+## Parsing in Controllers
+
+Always use **`safeParse`** in controllers — never `parse` (throws untyped).
+
+```typescript
+// ❌ BAD — throws untyped ZodError, not caught by errorHandler correctly
+const data = createTodoSchema.parse(req.body);
+
+// ✅ GOOD — safeParse + structured error response
+const result = createTodoSchema.safeParse(req.body);
+if (!result.success) {
+  const err = new Error('Validation failed') as Error & { statusCode: number };
+  err.statusCode = 400;
+  throw err;
+}
+const data = result.data;
+```
+
+## Rules
+
+- **One schema per operation** (create, update may differ).
+- Export both the schema and its inferred `type` from `src/schemas/`.
+- Never define schemas inline inside controllers.
+- Use `.optional()` + `.default()` for optional fields rather than `.nullable()` unless the DB column is genuinely nullable.

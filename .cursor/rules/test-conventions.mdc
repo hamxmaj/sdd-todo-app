@@ -1,0 +1,60 @@
+---
+description: Vitest + React Testing Library test conventions for both frontend and backend
+globs: **/*.test.{ts,tsx}
+alwaysApply: false
+---
+
+# Test Conventions (Vitest + RTL)
+
+## File Naming and Location
+
+- Unit/integration tests: `<subject>.test.ts` / `<subject>.test.tsx` co-located next to the file under test.
+- Backend API tests: `src/test/<subject>.test.ts`.
+- E2E: `e2e/<feature>.test.ts` using Playwright.
+
+## Test Structure
+
+```typescript
+// ✅ GOOD — describe + it, clear intent
+describe('TodoService', () => {
+  it('returns all todos for a given user', async () => { ... });
+  it('throws 404 when todo does not exist', async () => { ... });
+});
+
+// ❌ BAD — flat test function, no grouping
+test('todo service works', async () => { ... });
+```
+
+## Frontend — React Testing Library
+
+```tsx
+// ❌ BAD — tests implementation detail (internal state)
+expect(component.state.isLoading).toBe(true);
+
+// ❌ BAD — fireEvent doesn't simulate real browser events
+fireEvent.click(button);
+
+// ✅ GOOD — test what the user sees/does
+import userEvent from '@testing-library/user-event';
+const user = userEvent.setup();
+await user.click(screen.getByRole('button', { name: /add todo/i }));
+expect(screen.getByText('My new todo')).toBeInTheDocument();
+```
+
+## Backend — Supertest
+
+```typescript
+// ✅ GOOD — use supertest against the Express app factory
+import { createApp } from '../app';
+const app = createApp(testDb);
+const res = await request(app).post('/api/todos').send({ title: 'Test' });
+expect(res.status).toBe(201);
+```
+
+## Rules
+
+- Prefer `getByRole` > `getByLabelText` > `getByText` > `getByTestId` (last resort).
+- Never assert on CSS classes or internal component state.
+- Each `it` block should have exactly one logical assertion group.
+- Use `vi.fn()` for mocks; reset with `vi.clearAllMocks()` in `beforeEach`.
+- Backend tests must use an **in-memory SQLite** test database, never the dev DB.

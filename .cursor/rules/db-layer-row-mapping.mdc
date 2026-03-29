@@ -1,0 +1,55 @@
+---
+description: DB layer conventions — TodoRow (snake_case) vs Todo (camelCase), Knex migrations
+globs: backend/src/**/*.ts
+alwaysApply: false
+---
+
+# DB Layer — Row Mapping Conventions
+
+The backend uses two distinct shapes for todo data. **Never mix them.**
+
+| Type | Where used | Naming | Example |
+|------|-----------|--------|---------|
+| `TodoRow` | Knex query results, DB writes | `snake_case` | `created_at`, `is_completed` |
+| `Todo` | Service return values, API responses | `camelCase` | `createdAt`, `isCompleted` |
+
+## Mapping Pattern
+
+Conversion must happen **inside the service layer**, not in controllers or routes.
+
+```typescript
+// src/services/todoService.ts
+
+// ❌ BAD — returning raw DB row to the controller
+return db('todos').where({ id }).first(); // TodoRow leaks out
+
+// ✅ GOOD — map in the service
+function toTodo(row: TodoRow): Todo {
+  return {
+    id: row.id,
+    title: row.title,
+    completed: row.is_completed,
+    createdAt: row.created_at,
+  };
+}
+
+async getTodoById(id: number): Promise<Todo> {
+  const row = await db<TodoRow>('todos').where({ id }).first();
+  if (!row) { /* throw 404 error */ }
+  return toTodo(row);
+}
+```
+
+## Migration Conventions
+
+- File name: `YYYYMMDDHHMMSS_<verb>_<table>.ts` (e.g. `20260329120000_create_todos.ts`).
+- Always include both `up` and `down` exports.
+- Column names in migrations must be `snake_case`.
+- Run migrations via `npm run migrate` — never edit applied migration files.
+
+## Rules
+
+- `TodoRow` is defined in `src/types/todo.ts` — import from there, never re-declare inline.
+- Controllers must only ever receive and return the `Todo` domain type.
+- Do not use `knex.raw()` unless absolutely necessary; prefer the query builder.
+- Add `timestamps()` (creates `created_at` / `updated_at`) to every new table migration.
